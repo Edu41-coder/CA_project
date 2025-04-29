@@ -1,14 +1,20 @@
 # Initialize a new Git repository
 git init
 
+get remote -var
+
 # Add all files to the repository
 git add .
+git status
 
 # Commit the files
 git commit -m "Initial commit"
 
 # Add the remote repository
 git remote add origin https://github.com/Edu41-coder/CA_project.git
+
+# Rename local branch from master to main
+git branch -M main
 
 # Push to the main branch
 git push -u origin main
