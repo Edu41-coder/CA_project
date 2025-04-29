@@ -1,0 +1,48 @@
+une question pourquoi on n'a pas test_output pour evaluer les predictions sur test input?
+
+Ah, c'est une excellente question ! C'est parce qu'il s'agit d'une compétition de type "prédiction" ou d'un cas réel :
+Structure classique d'une compétition :
+train_input + train_output : pour entraîner et valider nos modèles
+test_input : pour faire nos prédictions finales
+test_output : gardé secret par l'organisateur pour évaluer les soumissions
+Pourquoi cette structure ?
+Évite la triche (on ne peut pas simplement copier les vraies valeurs)
+Teste la vraie capacité de généralisation du modèle
+Permet une évaluation équitable entre participants
+Comment valider notre modèle alors ?
+On doit diviser notre train en deux parties :
+from sklearn.model_selection import train_test_split
+
+def create_validation_set():
+    # Séparation des données train en train et validation
+    train_idx, val_idx = train_test_split(
+        train_df.index, 
+        test_size=0.2,  # 20% pour la validation
+        random_state=42
+    )
+    
+    # Création des ensembles
+    train_set = train_df.loc[train_idx]
+    val_set = train_df.loc[val_idx]
+    
+    print("Tailles des ensembles:")
+    print(f"Train complet: {len(train_df)}")
+    print(f"Train: {len(train_set)}")
+    print(f"Validation: {len(val_set)}")
+    
+    return train_set, val_set
+
+# Création des ensembles
+train_set, val_set = create_validation_set()
+
+Cette approche nous permet de :
+Entraîner sur train_set
+Valider sur val_set
+Une fois satisfaits, réentraîner sur tout train_df
+Faire les prédictions finales sur test_df
+C'est une pratique standard en machine learning pour :
+Évaluer la performance du modèle
+Détecter le surapprentissage
+Optimiser les hyperparamètres
+S'assurer que le modèle généralise bien
+Voulez-vous que je montre comment mettre en place cette validation croisée dans notre cas ?

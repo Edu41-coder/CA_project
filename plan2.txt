@@ -1,0 +1,47 @@
+Une autre approche potentiellement meilleure serait d'utiliser un modèle à deux étapes avec boosting :
+
+# 1. Pour FREQ
+freq_model = VotingRegressor([
+    # Première étape : prédire si sinistre ou non (classification)
+    ('has_claim', StackingClassifier([
+        ('lgbm_clf', LGBMClassifier(objective='binary')),
+        ('xgb_clf', XGBClassifier()),
+        ('cat_clf', CatBoostClassifier())
+    ])),
+    
+    # Deuxième étape : prédire le nombre si sinistre (régression)
+    ('claim_count', StackingRegressor([
+        ('poisson', PoissonRegressor()),
+        ('lgbm_reg', LGBMRegressor(objective='poisson')),
+        ('tweedie', GLM(family=Tweedie()))
+    ]))
+])
+
+# 2. Pour CM
+cm_model = VotingRegressor([
+    # Première étape : modèles pour petits sinistres
+    ('small_claims', StackingRegressor([
+        ('lgbm', LGBMRegressor(objective='tweedie')),
+        ('xgb', XGBRegressor(objective='reg:tweedie')),
+    ])),
+    
+    # Deuxième étape : modèles pour gros sinistres
+    ('large_claims', StackingRegressor([
+        ('gbm', GradientBoostingRegressor()),
+        ('rf', RandomForestRegressor()),
+        ('tweedie', GLM(family=Tweedie()))
+    ]))
+])
+
+Avantages de cette approche :
+Traite séparément :
+La probabilité d'avoir un sinistre
+Le nombre de sinistres
+Les petits et gros sinistres
+Utilise des modèles spécialisés pour chaque cas
+Permet un meilleur traitement des valeurs extrêmes
+Peut mieux capturer la structure des données
+On pourrait aussi ajouter :
+Cross-validation stratifiée
+Feature selection par importance
+Optimisation bayésienne des hyperparamètres

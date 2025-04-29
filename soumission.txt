@@ -1,0 +1,21 @@
+Oui, exactement ! Le fichier de soumission (95852, 5) est un template qui montre :
+Le format exact attendu pour soumettre nos prédictions
+Il contient exactement le même nombre de lignes que le test set (95852)
+Les 5 colonnes sont :
+ID (pour identifier chaque cas)
+FREQ (notre prédiction de fréquence)
+CM (notre prédiction de coût moyen)
+ANNEE_ASSURANCE (donnée fournie)
+CHARGE (calculée comme FREQ CM ANNEE_ASSURANCE)
+Pour soumettre nos résultats, nous devrons :
+Faire nos prédictions sur le test set
+Créer un fichier de soumission avec exactement le même format
+Remplir :
+Les prédictions FREQ
+Les prédictions CM
+Calculer CHARGE à partir de FREQ, CM et ANNEE_ASSURANCE
+C'est pour cela que dans la fonction load_data(), nous créons un submission_template :
+
+submission_template = submission_format.copy()
+submission_template[['FREQ', 'CM', 'CHARGE']] = 0
+Ce template pourra être utilisé plus tard pour formater nos prédictions correctement avant la soumission.

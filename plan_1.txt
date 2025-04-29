@@ -1,0 +1,161 @@
+xactement ! Le benchmark (baseline) utilise :
+GLM Poisson avec lien log pour FREQ
+GLM Tweedie avec lien log pour CM
+Pour améliorer ces modèles, on pourrait :
+# 1. Pour FREQ
+# Au lieu de juste Poisson GLM, on pourrait faire :
+freq_model = StackingRegressor([
+    ('poisson', PoissonRegressor()),  # Garder le modèle baseline
+    ('lgbm', LGBMRegressor(           # Ajouter LightGBM
+        objective='poisson',          # Même distribution
+        metric='poisson'
+    )),
+    ('rf', RandomForestRegressor())   # Ajouter RF pour la non-linéarité
+])
+
+# 2. Pour CM
+# Au lieu de juste Tweedie GLM, on pourrait faire :
+cm_model = StackingRegressor([
+    ('tweedie', GLM(..., family=Tweedie())),  # Garder le modèle baseline
+    ('xgb', XGBRegressor(                      # Ajouter XGBoost
+        objective='gamma',                     # Pour données asymétriques positives
+        eval_metric='gamma-nloglik'
+    )),
+    ('catboost', CatBoostRegressor(           # Ajouter CatBoost
+        loss_function='Tweedie'               # Même distribution
+    ))
+])
+
+L'idée est de :
+Garder les distributions appropriées (Poisson/Tweedie)
+Ajouter des modèles plus sophistiqués
+Combiner leurs prédictions
+Potentiellement ajouter des features engineered
+Voulez-vous que je développe une implémentation complète d'une de ces approches ?
+
+donc tout ça
+
+sont des couches qui vont interagir les unes avec les autres ou commetn ça amrche?ça devrait donner des meilleurs resultats?
+
+Le StackingRegressor fonctionne comme ceci :
+Niveau 1 - Modèles de base 
+# Ces 3 modèles sont entraînés indépendamment
+('tweedie', GLM)        → predictions_1
+('xgb', XGBoost)        → predictions_2
+('catboost', CatBoost)  → predictions_3
+
+Niveau 2 - Meta-modèle :
+# Les prédictions deviennent les features pour un méta-modèle
+features_finales = [predictions_1, predictions_2, predictions_3]
+meta_model = LinearRegression()  # ou autre modèle
+
+Visualisation :
+Input Data → GLM      → pred_1 ⎤
+Input Data → XGBoost  → pred_2 ⎥→ Meta-modèle → Prédiction finale
+Input Data → CatBoost → pred_3 ⎦
+
+Pourquoi c'est potentiellement meilleur :
+Chaque modèle capture différents aspects :
+GLM : relations linéaires, interprétabilité
+XGBoost : non-linéarités, interactions
+CatBoost : gestion automatique des catégories
+Le meta-modèle apprend à combiner les forces de chaque modèle :
+Si GLM est meilleur sur certains cas
+Si XGBoost est meilleur sur d'autres
+Le meta-modèle peut le détecter
+Diversité des approches :
+GLM : approche statistique classique
+XGBoost/CatBoost : approches machine learning modernes
+Différentes distributions (Tweedie, Gamma)
+
+
+donc dans
+
+les features en liue d'etre des colonnes sont des tableaux?
+
+
+
+
+Exactement ! Dans le stacking, les features pour le meta-modèle sont organisées comme ceci :
+# Supposons que nous avons 1000 observations
+
+# 1. Prédictions des modèles de base
+predictions_1 = glm.predict(X)      # shape: (1000,)
+predictions_2 = xgb.predict(X)      # shape: (1000,)
+predictions_3 = catboost.predict(X) # shape: (1000,)
+
+# 2. Création du nouveau dataset pour le meta-modèle
+meta_features = np.column_stack([predictions_1, predictions_2, predictions_3])
+# meta_features.shape: (1000, 3)
+
+# Visualisation des données:
+"""
+meta_features = 
+[
+    [pred_glm_1, pred_xgb_1, pred_catboost_1],     # Observation 1
+    [pred_glm_2, pred_xgb_2, pred_catboost_2],     # Observation 2
+    [pred_glm_3, pred_xgb_3, pred_catboost_3],     # Observation 3
+    ...
+    [pred_glm_1000, pred_xgb_1000, pred_catboost_1000]  # Observation 1000
+]
+"""
+
+# 3. Entraînement du meta-modèle
+meta_model.fit(meta_features, y)  # y est la target originale
+
+Chaque ligne du nouveau dataset contient les prédictions des différents modèles pour une même observation. Le meta-modèle apprend alors à combiner ces prédictions de manière optimale.
+
+
+Le feature engineering pour ce type de problème d'assurance pourrait inclure :
+
+Interactions entre variables existantes :
+
+# Exemples d'interactions
+X_train['surface_par_batiment'] = X_train['SURFACE'] / X_train['NBBAT']
+X_train['densite_equipement'] = X_train['EQUIPEMENT'] / X_train['SURFACE']
+
+Agrégations géographiques :
+
+# Statistiques par zone
+X_train['risque_moyen_zone'] = X_train.groupby('ZONE')['RISK'].mean()
+X_train['nb_sinistres_zone'] = X_train.groupby('ZONE')['NBSINCONJ'].sum()
+
+Variables temporelles :
+
+# Saisonnalité et tendances
+X_train['anciennete_normalisee'] = X_train['ANCIENNETE'] / X_train['DUREE_REQANEUF']
+X_train['ratio_exercice'] = X_train['AN_EXERC'] / X_train['ANNEE_ASSURANCE']
+
+
+4. Indicateurs de risque composites :
+
+# Scores de risque
+X_train['score_risque'] = (
+    X_train['RISK1'] * 0.3 +
+    X_train['RISK2'] * 0.4 +
+    X_train['RISK3'] * 0.3
+)
+
+Variables météorologiques combinées :
+
+# Indices climatiques
+X_train['indice_tempete'] = (
+    X_train['WIND_SPEED'] * 
+    X_train['RAIN_INTENSITY']
+)
+
+Ratios financiers :
+
+# Ratios d'assurance
+X_train['ratio_capital_surface'] = X_train['KAPITAL'] / X_train['SURFACE']
+X_train['taux_occupation'] = X_train['SURFACE_UTILISEE'] / X_train['SURFACE_TOTALE']
+
+Variables catégorielles encodées :
+# Encodages avancés
+X_train['risk_encoding'] = X_train.groupby('TYPBAT')['FREQ'].transform('mean')
+X_train['zone_encoding'] = X_train.groupby('ZONE')['CM'].transform('median')
+
+'idée est de :
+Créer des variables qui capturent des relations complexes
+Intégrer la connaissance métier de l'assurance
+Améliorer la capacité prédictive des modèles
